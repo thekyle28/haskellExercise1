@@ -347,20 +347,23 @@ lsTree (Dir name1 ( (File fileName (FP size _ time) ): xs ) )   = "size: " ++ sh
 --                ,"hard drive/Documents/User1/recipe.doc",
 --                ,"hard drive/Documents/User2"]
 
---use ++
 listAll :: Bool -> Entry -> [String]
-listAll fullPath (Dir name []) = name :[]
+--listAll that adds the directory name to the beginning if it is the first time it is opened
+listAll fullPath (Dir name []) = [name]
+--the case where there is an empty directory
+listAll fullPath (Dir name ( directory@( Dir dirName [] ): xs ) )| fullPath     = undefined
+                                                                 | not fullPath = name : (listAll fullPath directory) ++ (listAll' fullPath (Dir name xs))
 listAll fullPath (Dir name ( directory@( Dir dirName _ ): xs ) ) | fullPath     = (name ++ "/" ++ dirName) :  (listAll fullPath directory) ++ (listAll fullPath (Dir name xs))
-                                                                 | not fullPath = dirName : (listAll fullPath directory) ++ (listAll fullPath (Dir name xs))
+                                                                 | not fullPath =  name : (listAll fullPath directory) ++ (listAll' fullPath (Dir name xs))
 listAll fullPath (Dir name ( (File fileName (FP _ _ _) ): xs ) ) | fullPath     = (name ++ "/" ++ fileName) : listAll fullPath (Dir name xs)
-                                                                 | not fullPath = fileName : listAll fullPath (Dir name xs)
+                                                                 | not fullPath = name :fileName : (listAll' fullPath (Dir name xs))
 
-{-
-listAll' _ (Dir name []) = name : []
-listAll' fullPath (Dir name ( directory@( Dir dirName _ ): xs ) ) | fullPath     = (name ++ "/" ++ dirName) : (listAll' fullPath directory) : listAll' fullPath (Dir name xs)
-                                                                 | not fullPath = dirName : (listAll' fullPath directory) : listAll' fullPath (Dir name xs)
-listAll' fullPath (Dir name ( (File fileName (FP _ _ _) ): xs ) ) | fullPath     = (name ++ "/" ++ fileName) : listAll' fullPath (Dir name xs)
-                                                                 | not fullPath = fileName : listAll' fullPath (Dir name xs)-}
+--listAll that does not add the directory name to the beginning
+listAll' _ (Dir name []) = []
+listAll' fullPath (Dir name ( directory@( Dir dirName _ ): xs ) )| fullPath     = (name ++ "/" ++ dirName) : (listAll' fullPath directory) ++ listAll' fullPath (Dir name xs)
+                                                                 | not fullPath = (listAll fullPath directory) ++ listAll' fullPath (Dir name xs) 
+listAll' fullPath (Dir name ( (File fileName (FP _ _ _) ): xs ) )| fullPath     = (name ++ "/" ++ fileName) : listAll' fullPath (Dir name xs)
+                                                                 | not fullPath = fileName : listAll' fullPath (Dir name xs)
 
 -- Exercise, hard. 
 --
