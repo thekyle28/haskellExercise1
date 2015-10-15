@@ -350,17 +350,18 @@ lsTree (Dir name1 ( (File fileName (FP size _ time) ): xs ) )   = "size: " ++ sh
 listAll :: Bool -> Entry -> [String]
 --listAll that adds the directory name to the beginning if it is the first time it is opened
 listAll fullPath (Dir name []) = [name]
---the case where there is an empty directory
-listAll fullPath (Dir name ( directory@( Dir dirName [] ): xs ) )| fullPath     = undefined
+--the below case is to tell the difference between an empty directory, when the name should be placed once,
+--and a directory that we have finished searching through, when the name should now be placed to avoid duplications.
+listAll fullPath (Dir name ( directory@( Dir dirName [] ): xs ) )| fullPath     = name : (listAll fullPath (Dir (name ++ "/" ++ dirName) []) ) ++ (listAll' fullPath (Dir name xs))
                                                                  | not fullPath = name : (listAll fullPath directory) ++ (listAll' fullPath (Dir name xs))
-listAll fullPath (Dir name ( directory@( Dir dirName _ ): xs ) ) | fullPath     = (name ++ "/" ++ dirName) :  (listAll fullPath directory) ++ (listAll fullPath (Dir name xs))
-                                                                 | not fullPath =  name : (listAll fullPath directory) ++ (listAll' fullPath (Dir name xs))
-listAll fullPath (Dir name ( (File fileName (FP _ _ _) ): xs ) ) | fullPath     = (name ++ "/" ++ fileName) : listAll fullPath (Dir name xs)
-                                                                 | not fullPath = name :fileName : (listAll' fullPath (Dir name xs))
+listAll fullPath (Dir name ( directory@( Dir dirName ents): xs)) | fullPath     = name : (listAll fullPath (Dir (name ++ "/" ++ dirName) ents) ) ++ (listAll' fullPath (Dir name xs))
+                                                                 | not fullPath = name : (listAll fullPath directory) ++ (listAll' fullPath (Dir name xs))
+listAll fullPath (Dir name ( (File fileName (FP _ _ _) ): xs ) ) | fullPath     = name : (name ++ "/" ++ fileName) : (listAll' fullPath (Dir name xs))
+                                                                 | not fullPath = name : (name ++ "/" ++ fileName) : (listAll' fullPath (Dir name xs))
 
---listAll that does not add the directory name to the beginning
+--listAll that does not add the directory name to the beginning to avoid duplicating names
 listAll' _ (Dir name []) = []
-listAll' fullPath (Dir name ( directory@( Dir dirName _ ): xs ) )| fullPath     = (name ++ "/" ++ dirName) : (listAll' fullPath directory) ++ listAll' fullPath (Dir name xs)
+listAll' fullPath (Dir name ( directory@( Dir dirName ents ): xs ) )| fullPath     = (listAll fullPath (Dir (name ++ "/" ++ dirName) ents)) ++ listAll' fullPath (Dir name xs) 
                                                                  | not fullPath = (listAll fullPath directory) ++ listAll' fullPath (Dir name xs) 
 listAll' fullPath (Dir name ( (File fileName (FP _ _ _) ): xs ) )| fullPath     = (name ++ "/" ++ fileName) : listAll' fullPath (Dir name xs)
                                                                  | not fullPath = fileName : listAll' fullPath (Dir name xs)
@@ -388,6 +389,12 @@ listAll' fullPath (Dir name ( (File fileName (FP _ _ _) ): xs ) )| fullPath     
 cp :: Entry -> (Path, Entry) -> Entry
 cp root (destPath, subtree) = undefined
 
+insert :: Dir -> Dir -> Dir
+insert (Dir name entries) subtree = undefined --Dir name (subtree:entries) 
+
+find :: Path -> Dir -> Dir
+find path@(x:xs) tree =  undefined
+
 -- Exercise, medium. Given a tree and a path, remove the file or
 -- directory at that path.
 --
@@ -398,7 +405,7 @@ cp root (destPath, subtree) = undefined
 -- (In that the case, the tree would not be "valid" according to isValid.)
 
 rm :: Entry -> Path -> Entry
-rm root path = undefined
+rm (Dir _ []) path = undefined
 
 -- Exercise, harder. Return a tree with all the same entries, but so
 -- that the entries of each (sub)directory are in sorted order.
