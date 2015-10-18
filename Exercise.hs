@@ -190,16 +190,16 @@ cd root (x:xs)   | cd1 root x ==Nothing = Nothing
                  | otherwise            = cd ( maybe2Entry (cd1 root x) ) xs
 
 cd2 :: Entry -> String -> Maybe Entry
-cd2 file@(File name _)  n                               | n==name        = Just file
-                                                        | otherwise      = Nothing
+cd2 file@(File name _)  n                                           | n==name        = Just file
+                                                                    | otherwise      = Nothing
 cd2 ( Dir name [] ) n                                                    = Nothing
-cd2 ( Dir name ( file@(File fileName _ ):xs) ) n        | fileName == n  = Just file
-                                                        | otherwise      = cd2 (Dir name xs) n
+cd2 ( Dir name ( file@(File fileName _ ):xs) ) n                    | fileName == n  = Just file
+                                                                    | otherwise      = cd2 (Dir name xs) n
 cd2 ( Dir name directory1@( (directory2@(Dir entryName _) ):xs) ) n  
-                                                        | directory1==[] = Nothing
-                                                        | entryName==n   = Just directory2
-                                                        | entryName/=n   = cd2 (Dir name xs) n
-                                                        | otherwise      = Nothing
+                                                                    | directory1==[] = Nothing
+                                                                    | entryName==n   = Just directory2
+                                                                    | entryName/=n   = cd2 (Dir name xs) n
+                                                                    | otherwise      = Nothing
 
 
 maybe2Entry :: Maybe Entry -> Entry
@@ -385,7 +385,7 @@ listAll' fullPath (Dir name ( (File fileName (FP _ _ _) ): xs ) )| fullPath     
 --
 -- (This function is similar-ish to the Unix 'cp' utility.)
 
-
+{-
 cp :: Entry -> (Path, Entry) -> Entry
 cp root (destPath, subtree) = undefined
 
@@ -393,7 +393,7 @@ insert :: Dir -> Dir -> Dir
 insert (Dir name entries) subtree = undefined --Dir name (subtree:entries) 
 
 find :: Path -> Dir -> Dir
-find path@(x:xs) tree =  undefined
+find path@(x:xs) tree =  undefined -}
 
 -- Exercise, medium. Given a tree and a path, remove the file or
 -- directory at that path.
@@ -405,7 +405,15 @@ find path@(x:xs) tree =  undefined
 -- (In that the case, the tree would not be "valid" according to isValid.)
 
 rm :: Entry -> Path -> Entry
-rm (Dir _ []) path = undefined
+rm (Dir _ []) path                                                              = error "Path doesn't exist in the directory"
+rm (Dir name ( ( Dir dirName ents ): xs ) ) [path]           | dirName == path  = Dir name xs
+                                                             | otherwise        = Dir name ([Dir dirName ents] ++ [rm (Dir name xs) [path] ] )
+rm (Dir name ( ( Dir dirName ents ): xs ) ) (path:subpath)   | dirName == path  = Dir name ( ( rm ( Dir dirName ents ) subpath ) : xs )
+                                                             | otherwise        = Dir name ([(Dir dirName ents )] ++ [rm (Dir name xs) (path:subpath)])
+rm (Dir name ( ( File fileName fps ): xs ) ) [path]          | fileName == path = Dir name xs
+                                                             | otherwise        = Dir name ([File fileName fps] ++ [rm (Dir name xs) [path] ] )
+rm (Dir name ( ( File fileName fps ): xs ) ) (path:subpath)  | fileName == path = error "Path doesn't exist in the directory"
+                                                             | otherwise        = Dir name ([File fileName fps] ++ [rm (Dir name xs) (path:subpath)])                                                           
 
 -- Exercise, harder. Return a tree with all the same entries, but so
 -- that the entries of each (sub)directory are in sorted order.
