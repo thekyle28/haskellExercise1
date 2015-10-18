@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE Safe #-}
 module Exercise where
-import Data.List (intercalate)
+import Data.List (intercalate, sort, sortOn)
 
 
 
@@ -133,6 +133,9 @@ exampleEntry3 :: Entry
 exampleEntry3 = Dir "hard drive" [Dir "WINDOWS" [File "cmd.exe" (FP 1024 "" 1995), File "explorer.exe" (FP 2048 "" 1995)],
                                   Dir "Documents" [Dir "User1" [File "recipe.doc" (FP 723 "" 2000)], 
                                                    Dir "User2" []] ]
+exampleEntry4 = Dir "hard drive" [Dir "WINDOWS" [File "xmd.exe" (FP 1024 "" 1995), File "explorer.exe" (FP 2048 "" 1995)],
+                                  Dir "Documents" [Dir "User2" [File "recipe.doc" (FP 723 "" 2000)], 
+                                                   Dir "User1" []] ]
 
 -- Exercise, unassessed. You're given a directory as a value of type
 -- Entry. In this directory there is a subdirectory with name n. Find
@@ -385,7 +388,7 @@ listAll' fullPath (Dir name ( (File fileName (FP _ _ _) ): xs ) )| fullPath     
 --
 -- (This function is similar-ish to the Unix 'cp' utility.)
 
-{-
+{- need to uncomment this
 cp :: Entry -> (Path, Entry) -> Entry
 cp root (destPath, subtree) = undefined
 
@@ -424,7 +427,17 @@ rm (Dir name ( ( File fileName fps ): xs ) ) (path:subpath)  | fileName == path 
 -- you may choose any order.
 
 sortTree :: Entry -> Entry
-sortTree root = undefined
+sortTree (Dir name []) = Dir name []
+sortTree file@(File _ _) = file
+sortTree (Dir name entries) = Dir name ( sortEntries (map sortTree entries) )
+
+--sorts a list of entries by, extracting the names of all the entries, sorting the names, and returning the files and directories with those names.
+sortEntries :: [Entry] -> [Entry]
+sortEntries entries = sortOn getName entries 
+
+getName :: Entry -> EntryName
+getName (File fileName _) = fileName
+getName (Dir name _)      = name
 
 -- Exercise, unassessed. Change all letters to upper case in a string.
 --
