@@ -389,15 +389,25 @@ listAll' fullPath (Dir name ( (File fileName (FP _ _ _) ): xs ) )   | fullPath  
 -- (This function is similar-ish to the Unix 'cp' utility.)
 
 cp :: Entry -> (Path, Entry) -> Entry
-cp (Dir _ []) (destPath, subtree) = undefined
+cp (Dir _ []) (_, _)                                                                       = error "Path doesn't exist in the directory"
 cp (Dir name ( ( Dir dirName ents ): xs ) ) ([path],subtree)            | dirName == path  = Dir name ( ( Dir dirName (subtree:ents) ): xs )
-                                                                        | otherwise        = Dir name ( [Dir dirName ents] ++ [cp (Dir name xs) ([path],subtree) ] )
+                                                                        | otherwise        = Dir name ( [Dir dirName ents] ++ cp' (Dir name xs) ([path],subtree)  )
 cp (Dir name ( ( Dir dirName ents ): xs ) ) ( (path:subpath),subtree )  | dirName == path  = Dir name ( ( cp ( Dir dirName ents ) (subpath, subtree) ) : xs )
-                                                                        | otherwise        = Dir name ([Dir dirName ents] ++ [cp (Dir name xs) ( (path:subpath), subtree ) ] ) 
+                                                                        | otherwise        = Dir name ([Dir dirName ents] ++ cp' (Dir name xs) ( (path:subpath), subtree )  ) 
 cp (Dir name ( ( File fileName fps ): xs ) ) ([path], subtree)          | fileName == path = error "Path invalid, cannot copy into a file"
-                                                                        | otherwise        = Dir name ([File fileName fps] ++ [cp (Dir name xs) ([path], subtree) ] )
+                                                                        | otherwise        = Dir name ([File fileName fps] ++ cp' (Dir name xs) ([path], subtree)  )
 cp (Dir name ( ( File fileName fps ): xs ) ) ((path:subpath), subtree)  | fileName == path = error "Path invalid, cannot cd into a file"
-                                                                        | otherwise        = Dir name ([File fileName fps] ++ [cp (Dir name xs) ( (path:subpath), subtree ) ] )         
+                                                                        | otherwise        = Dir name ([File fileName fps] ++ cp' (Dir name xs) ( (path:subpath), subtree )  )         
+cp' :: Entry -> (Path, Entry) -> [Entry]
+cp' (Dir _ []) _                                                                           = error "Path doesn't exist in the directory"
+cp' (Dir name ( ( Dir dirName ents ): xs ) ) ([path],subtree)           | dirName == path  = ( Dir dirName (subtree:ents) ) :xs
+                                                                        | otherwise        = [Dir dirName ents] ++ cp' (Dir name xs) ([path],subtree) 
+cp' (Dir name ( ( Dir dirName ents ): xs ) ) ( (path:subpath),subtree ) | dirName == path  = ( cp ( Dir dirName ents ) (subpath, subtree) )  : xs 
+                                                                        | otherwise        = [(Dir dirName ents )] ++ cp' (Dir name xs) ( (path:subpath), subtree)
+cp' (Dir name ( ( File fileName fps ): xs ) ) ([path],subtree)          | fileName == path = error "Path invalid, cannot copy into a file"
+                                                                        | otherwise        = [File fileName fps] ++ cp' (Dir name xs) ([path], subtree) 
+cp' (Dir name ( ( File fileName fps ): xs ) ) ( (path:subpath),subtree )| fileName == path = error "Path invalid, cannot cd into a file"
+                                                                        | otherwise        = [File fileName fps] ++ cp' (Dir name xs) ( (path:subpath), subtree)    
 
 -- Exercise, medium. Given a tree and a path, remove the file or
 -- directory at that path.
@@ -411,25 +421,25 @@ cp (Dir name ( ( File fileName fps ): xs ) ) ((path:subpath), subtree)  | fileNa
 rm :: Entry -> Path -> Entry
 rm (Dir _ []) path                                                              = error "Path doesn't exist in the directory"
 rm (Dir name ( ( Dir dirName ents ): xs ) ) [path]           | dirName == path  = Dir name xs
-                                                             | otherwise        = Dir name ([Dir dirName ents] ++ [rm' (Dir name xs) [path] ] )
+                                                             | otherwise        = Dir name (Dir dirName ents : rm' (Dir name xs) [path]  )
 rm (Dir name ( ( Dir dirName ents ): xs ) ) (path:subpath)   | dirName == path  = Dir name ( ( rm ( Dir dirName ents ) subpath ) : xs )
-                                                             | otherwise        = Dir name ([(Dir dirName ents )] ++ [rm' (Dir name xs) (path:subpath)])
+                                                             | otherwise        = Dir name ((Dir dirName ents ) : rm' (Dir name xs) (path:subpath))
 rm (Dir name ( ( File fileName fps ): xs ) ) [path]          | fileName == path = Dir name xs
-                                                             | otherwise        = Dir name ([File fileName fps] ++ [rm' (Dir name xs) [path] ] )
+                                                             | otherwise        = Dir name (File fileName fps : rm' (Dir name xs) [path]  )
 rm (Dir name ( ( File fileName fps ): xs ) ) (path:subpath)  | fileName == path = error "Path doesn't exist in the directory"
-                                                             | otherwise        = Dir name ([File fileName fps] ++ [rm' (Dir name xs) (path:subpath)])         
+                                                             | otherwise        = Dir name (File fileName fps : rm' (Dir name xs) (path:subpath))         
 
 
-rm' :: Entry -> Path -> Entry
-rm' (Dir _ []) path                                                              = error "Path doesn't exist in the directory"
-rm' (Dir name ( ( Dir dirName ents ): xs ) ) [path]           | dirName == path  = Dir name xs
-                                                             | otherwise        = [Dir dirName ents] ++ rm' (Dir name xs) [path] 
-rm' (Dir name ( ( Dir dirName ents ): xs ) ) (path:subpath)   | dirName == path  = Dir name ( ( rm ( Dir dirName ents ) subpath ) : xs )
-                                                             | otherwise        = [(Dir dirName ents )] ++ rm' (Dir name xs) (path:subpath)
-rm' (Dir name ( ( File fileName fps ): xs ) ) [path]          | fileName == path = Dir name xs
-                                                             | otherwise        = [File fileName fps] ++ rm' (Dir name xs) [path]  
-rm' (Dir name ( ( File fileName fps ): xs ) ) (path:subpath)  | fileName == path = error "Path doesn't exist in the directory"
-                                                             | otherwise        = [File fileName fps] ++ rm' (Dir name xs) (path:subpath)                                                
+rm' :: Entry -> Path -> [Entry]
+rm' (Dir _ []) path                                                            = error "Path doesn't exist in the directory"
+rm' (Dir name ( ( Dir dirName ents ): xs ) ) [path]         | dirName == path  = xs
+                                                            | otherwise        = [Dir dirName ents] ++ rm' (Dir name xs) [path] 
+rm' (Dir name ( ( Dir dirName ents ): xs ) ) (path:subpath) | dirName == path  =  (rm ( Dir dirName ents ) subpath)  : xs 
+                                                            | otherwise        = [(Dir dirName ents )] ++ rm' (Dir name xs) (path:subpath)
+rm' (Dir name ( ( File fileName fps ): xs ) ) [path]        | fileName == path = xs
+                                                            | otherwise        = [File fileName fps] ++ rm' (Dir name xs) [path]  
+rm' (Dir name ( ( File fileName fps ): xs ) ) (path:subpath)| fileName == path = error "Path doesn't exist in the directory"
+                                                            | otherwise        = [File fileName fps] ++ rm' (Dir name xs) (path:subpath)                                                
 
 -- Exercise, harder. Return a tree with all the same entries, but so
 -- that the entries of each (sub)directory are in sorted order.
