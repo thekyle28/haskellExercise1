@@ -497,10 +497,19 @@ upcaseChar c =
 -- fileMap must be.
 
 modifyEntries :: Entry -> ((EntryName, FileProp) -> (EntryName, FileProp)) -> Entry
-modifyEntries root fileMap = undefined
---use $ instead of parentheses
+modifyEntries directory@(Dir _ []) _ = directory
+modifyEntries (Dir name ( ( Dir dirName ents ): xs ) )  fileMap = Dir name ( (modifyEntries (Dir dirName ents) fileMap) : modifyEntries' (Dir name xs) fileMap )  
+modifyEntries (Dir name ( ( File fileName fps ): xs ) ) fileMap = Dir name ( (File (fst $ fileMap (fileName, fps) ) (snd $ fileMap (fileName, fps) ) ) : modifyEntries' (Dir name xs) fileMap )
+
+modifyEntries' :: Entry -> ((EntryName, FileProp) -> (EntryName, FileProp)) -> [Entry]
+modifyEntries' directory@(Dir _ []) _ = []
+modifyEntries' (Dir name ( ( Dir dirName ents ): xs ) )  fileMap = (modifyEntries (Dir dirName ents) fileMap) : modifyEntries' (Dir name xs) fileMap  
+modifyEntries' (Dir name ( ( File fileName fps ): xs ) ) fileMap = (File (fst $ fileMap (fileName, fps) ) (snd $ fileMap (fileName, fps) ) ) : modifyEntries' (Dir name xs) fileMap 
+
 fileMap :: (EntryName, FileProp) -> (EntryName, FileProp)
-fileMap = undefined
+fileMap (name, fileProp) = (upcaseStr name, fileProp)
+
+
 
 -- Exercise, unassessed. Create a "Fibonacci tree".
 --
