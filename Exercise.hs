@@ -301,9 +301,17 @@ lsL (Dir name1 ( (Dir dirName _):xs ) )                     = dirName ++ "\n" ++
 
 lsTree :: Entry -> String
 lsTree (Dir _ [])                                      = ""
-lsTree (Dir name1 ( directory@( Dir dirName _ ):xs ) ) = dirName ++ "\n" ++ lsTree directory ++ lsTree (Dir name1 xs)  
-lsTree (Dir name1 ( (File fileName (FP size _ time) ): xs ) )   = "size: " ++ show size ++ " time: "++ show time ++  " " ++ fileName ++
-                                                                    "\n" ++ lsTree (Dir name1 xs)
+lsTree (Dir name1 ( directory@( Dir dirName _ ):xs ) ) = name1 ++ "\n|\n|-- " ++ dirName ++ "\n|   |\n" ++ (lsTree' directory 1) ++ ( lsTree' (Dir name1 xs) 0)  
+lsTree (Dir name1 ( (File fileName (FP size _ time) ): xs ) )   =  name1 ++"\n|\n|-- " ++ fileName ++"\n|\n" ++ lsTree' (Dir name1 xs) 0
+
+lsTree' :: Entry -> Int -> String
+lsTree' (Dir _ []) n                                    = ""
+lsTree' (Dir name1 ( directory@( Dir dirName _ ):xs ) ) n = (pipes n) ++ "|-- " ++ dirName ++ "\n" ++ pipes n ++ "|   |\n" ++ lsTree' directory (n+1) ++ lsTree' (Dir name1 xs) n  
+lsTree' (Dir name1 ( (File fileName (FP size _ time) ): xs ) ) n   =  if xs == [] then (pipes n) ++ "|-- " ++ fileName ++"\n"++(pipes n)++"\n" ++ lsTree' (Dir name1 xs) n
+                                                                      else (pipes n) ++ "|-- " ++ fileName ++"\n"++(pipes n)++"|\n" ++ lsTree' (Dir name1 xs) n
+pipes :: Int -> String
+pipes 0 = ""
+pipes n = "|   " ++ (pipes $ n-1)
 
 -- Exercise, challenge. Make a list of all the files and directories
 -- recursively in a tree (similar to "find ." in linux). If the
@@ -474,7 +482,7 @@ getName (Dir name _)      = name
 -- You may use the function upcaseChar, defined below.
 
 upcaseStr :: String -> String
-upcaseStr s = undefined
+upcaseStr s = [upcaseChar x|x<-s]
 
 upcaseChar :: Char -> Char
 upcaseChar c =
@@ -490,6 +498,9 @@ upcaseChar c =
 
 modifyEntries :: Entry -> ((EntryName, FileProp) -> (EntryName, FileProp)) -> Entry
 modifyEntries root fileMap = undefined
+--use $ instead of parentheses
+fileMap :: (EntryName, FileProp) -> (EntryName, FileProp)
+fileMap = undefined
 
 -- Exercise, unassessed. Create a "Fibonacci tree".
 --
@@ -570,8 +581,15 @@ fibEntry = undefined
 -- Files that are exactly that size should be kept in.
 
 findSmallerThan :: Entry -> Int -> Entry
-findSmallerThan root maxSize = undefined
-
+findSmallerThan root maxSize = case root of
+  Dir name entries -> Dir name entries''
+    where 
+      pred (File name (FP size content time) ) = size < maxSize
+      pred _ =  True
+      entries' = filter pred entries
+      entries'' = map mapper entries'
+      mapper entry = findSmallerThan entry maxSize
+  _ -> root 
 -- Exercise, challenge. Remove from a tree all files that do not
 -- satisfy a given predicate. You should not remove any directories.
 
@@ -593,8 +611,18 @@ findSmallerThanPred maxSize (filename, props) = undefined
 -- Exercise, unassessed. Same as findSmallerThan, but implement it again
 -- using `find` and `findSmallerThanPred`.
 
+--use filter
+
 findSmallerThan2 :: Entry -> Int -> Entry
-findSmallerThan2 root maxSize = undefined
+findSmallerThan2 root maxSize = case root of
+  Dir name entries -> Dir name entries''
+    where 
+      pred (File name (FP size content time) ) = size < maxSize
+      pred _ =  True
+      entries' = filter pred entries
+      entries'' = map mapper entries'
+      mapper entry = findSmallerThan2 entry maxSize
+  _ -> root 
 
 -- Exercise, challenge, assessed.
 --
