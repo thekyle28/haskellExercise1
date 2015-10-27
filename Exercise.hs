@@ -302,28 +302,18 @@ lsL (Dir name1 ( (Dir dirName _):xs ) )                     = dirName ++ "\n" ++
 --
 -- Use the newline convention as given above.
 
-lsTree :: Entry -> String
-lsTree (Dir name [])                                      = name
-lsTree (Dir name1 ( directory@( Dir dirName ys ):xs ) ) = if xs == [] then removeTrails ( name1 ++ "\n|\n|-- " ++ dirName ++ "\n" ++ (lsTree' directory 1) ++ ( lsTree' (Dir name1 xs) 0) )
-                                                         else if  ys ==[] then removeTrails ( name1 ++ "\n|\n|-- " ++ dirName ++ "\n|\n" ++ (lsTree' directory 1) ++ ( lsTree' (Dir name1 xs) 0) )
-                                                         else removeTrails ( name1 ++ "\n|\n|-- " ++ dirName ++ "\n|   |\n" ++ (lsTree' directory 1) ++ ( lsTree' (Dir name1 xs) 0) )  
-lsTree (Dir name1 ( (File fileName (FP size _ time) ): xs ) )   = removeTrails ( name1 ++"\n|\n|-- " ++ fileName ++"\n" ++ lsTree' (Dir name1 xs) 0 )
+lsTree ::Entry ->String
+lsTree directory@(Dir name _) = name ++ (lsTree' directory 0)
 
-lsTree' :: Entry -> Int -> String
-lsTree' (Dir _ []) n                                    = ""
-lsTree' (Dir name1 ( directory@( Dir dirName ys ):xs ) ) n = if xs ==[] && ys==[] then (pipes n) ++ "|-- " ++ dirName ++ "\n" ++ pipes n ++ lsTree' directory (n+1) ++ lsTree' (Dir name1 xs) n  
-                                                            else if ys ==[] then (pipes n) ++ "|-- " ++ dirName ++ "\n" ++ pipes n ++ lsTree' directory (n+1) ++ lsTree' (Dir name1 xs) n  
-                                                            else (pipes n) ++ "|-- " ++ dirName ++ "\n" ++ pipes n ++ "|   |\n" ++ lsTree' directory (n+1) ++ lsTree' (Dir name1 xs) n  
-lsTree' (Dir name1 ( (File fileName (FP size _ time) ): xs ) ) n   =  if xs == [] then (pipes n) ++ "|-- " ++ fileName ++"\n"++(pipes n)++"\n" ++ lsTree' (Dir name1 xs) n
-                                                                      else (pipes n) ++ "|-- " ++ fileName ++"\n"++(pipes n)++"|\n" ++ lsTree' (Dir name1 xs) n
+lsTree' ::Entry -> Int -> String
+lsTree' (Dir name []) n                                    = ""
+lsTree' (Dir name ( directory@( Dir dirName ys ):xs ) ) n  = "\n|" ++pipes n ++ "\n|" ++ pipes n ++ "-- " ++ dirName ++ lsTree' directory (n+1) ++ lsTree' (Dir name xs) n
+lsTree' (Dir name ( (File fileName (FP _ _ _) ) :xs ) ) n  = "\n|" ++pipes n ++ "\n|" ++ pipes n ++ "-- " ++ fileName ++ lsTree' (Dir name xs) n 
+
 
 pipes :: Int -> String
 pipes 0 = ""
-pipes n = "|   " ++ (pipes $ n-1)
-
-removeTrails :: String -> String
-removeTrails string = let (x:xs) = reverse string in
-                      if x == '|' || x == ' ' then removeTrails (reverse xs) else reverse (x:xs) 
+pipes n = "   |" ++ (pipes $ n-1)
 
 -- Exercise, challenge. Make a list of all the files and directories
 -- recursively in a tree (similar to "find ." in linux). If the
@@ -516,12 +506,13 @@ upcaseChar c =
 -- fileMap must be.
 
 modifyEntries :: Entry -> ((EntryName, FileProp) -> (EntryName, FileProp)) -> Entry
-modifyEntries directory@(Dir _ []) _ = directory
+modifyEntries (File fileName fps) fileMap                       = File (fst $ alteredFile) (snd $ alteredFile) where alteredFile = fileMap (fileName, fps)
+modifyEntries directory@(Dir _ []) _                            = directory
 modifyEntries (Dir name ( ( Dir dirName ents ): xs ) )  fileMap = Dir name ( (modifyEntries (Dir dirName ents) fileMap) : modifyEntries' (Dir name xs) fileMap )  
 modifyEntries (Dir name ( ( File fileName fps ): xs ) ) fileMap = Dir name ( (File (fst $ fileMap (fileName, fps) ) (snd $ fileMap (fileName, fps) ) ) : modifyEntries' (Dir name xs) fileMap )
 
 modifyEntries' :: Entry -> ((EntryName, FileProp) -> (EntryName, FileProp)) -> [Entry]
-modifyEntries' directory@(Dir _ []) _ = []
+modifyEntries' (Dir _ []) _                                      = []
 modifyEntries' (Dir name ( ( Dir dirName ents ): xs ) )  fileMap = (modifyEntries (Dir dirName ents) fileMap) : modifyEntries' (Dir name xs) fileMap  
 modifyEntries' (Dir name ( ( File fileName fps ): xs ) ) fileMap = (File (fst $ fileMap (fileName, fps) ) (snd $ fileMap (fileName, fps) ) ) : modifyEntries' (Dir name xs) fileMap 
 
@@ -618,13 +609,39 @@ findSmallerThan root maxSize = case root of
       entries'' = map mapper entries'
       mapper entry = findSmallerThan entry maxSize
   _ -> root 
+
+
+{-find :: Entry -> ((EntryName, FileProp) -> Bool) -> Entry
+find root predicate = case root of
+  file@(File fileName fps)-> predicate (fileName, fps)   
+  Dir name entries -> Dir name entries''
+    where 
+      pred (File fileName fps) = predicate (fileName, fps)
+      pred _ =  True
+      entries' = filter pred entries
+      entries'' = map mapper entries'
+      mapper entry = if entry ==File then find entry predicate-}
+
+
 -- Exercise, challenge. Remove from a tree all files that do not
 -- satisfy a given predicate. You should not remove any directories.
 
+{-find :: Entry -> ((EntryName, FileProp) -> Bool) -> Entry
+find (Dir name ( (File fileName fps):xs ) ) predicate | predicate (fileName, fps) = File fileName fps
+                                   | otherwise                 = -}
+  
+
 find :: Entry -> ((EntryName, FileProp) -> Bool) -> Entry
-find root predicate = undefined
+find (Dir name []) _ = Dir name []
+find (Dir name ( directory@(Dir dirName entries) : xs) ) predicate = Dir name ( (find directory predicate) : find' (Dir name xs) predicate )
+find (Dir name ( file@(File fileName fps) : xs) ) predicate | predicate (fileName, fps) = Dir name (file: find' (Dir name xs) predicate)
+                                                            | otherwise                 = Dir name (find' (Dir name xs) predicate)
 
-
+find' :: Entry -> ((EntryName, FileProp) -> Bool) -> [Entry]
+find' (Dir name []) _ = []
+find' (Dir name ( directory@(Dir dirName entries) : xs) ) predicate = ( (find directory predicate) : (find' (Dir name xs) predicate) )
+find' (Dir name ( file@(File fileName fps) : xs) ) predicate | predicate (fileName, fps) = (file:find' (Dir name xs) predicate)
+                                                             | otherwise                 = find' (Dir name xs) predicate
 -- Exercise, unassessed. Given a maximum file size, a file name and its file
 -- properties, return whether the file is at most that size.
 --
